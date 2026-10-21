@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ZakharyB/meshcraft/internal/coordinator"
+	"github.com/ZakharyB/meshcraft/internal/hosting"
 	"github.com/ZakharyB/meshcraft/internal/identity"
 )
 
@@ -94,4 +95,54 @@ func (t *HTTPTransport) Ping(ctx context.Context, ep PeerEndpoint) (time.Duratio
 		return 0, fmt.Errorf("peer %s healthz: %s", ep.PeerID, resp.Status)
 	}
 	return time.Since(start), nil
+}
+
+// AcquireLease requests host authority from the coordinator.
+func (t *HTTPTransport) AcquireLease(ctx context.Context, worldID string, ttl time.Duration) (hosting.Lease, error) {
+	body, _ := json.Marshal(map[string]any{
+		"world_id": worldID, "peer_id": t.Identity.PeerID,
+		"ttl_seconds": int(ttl.Seconds()),
+	})
+	req, err := http.NewRequestWithContext(ctx, "POST", t.CoordinatorURL+"/lease/acquire", bytes.NewReader(body))
+	if err != nil {
+		return hosting.Lease{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := t.http().Do(req)
+	if err != nil {
+		return hosting.Lease{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == 409 {
+		return hosting.Lease{}, hosting.ErrLeaseHeld
+	}
+	if resp.StatusCode != 200 {
+		return hosting.Lease{}, fmt.Errorf("coordinator lease acquire: %s", resp.Status)
+	}
+	var lease hosting.Lease
+	if err := json.NewDecoder(resp.Body).Decode(&lease); err != nil {
+		return hosting.Lease{}, err
+	}
+	return lease, nil
+}
+
+// ReleaseLease returns host authority to the coordinator.
+func (t *HTTPTransport) ReleaseLease(ctx context.Context, worldID string, token uint64) error {
+	body, _ := json.Marshal(map[string]any{
+		"world_id": worldID, "peer_id": t.Identity.PeerID, "token": token,
+	})
+	req, err := http.NewRequestWithContext(ctx, "POST", t.CoordinatorURL+"/lease/release", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := t.http().Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("coordinator lease release: %s", resp.Status)
+	}
+	return nil
 }

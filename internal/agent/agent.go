@@ -139,8 +139,10 @@ func (a *Agent) StartWorld(ctx context.Context, worldID string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := a.AcquireLocalLease(worldID); err != nil {
-		return fmt.Errorf("host authority: %w", err)
+	if !a.hasValidLease(worldID) {
+		if _, err := a.AcquireLocalLease(worldID); err != nil {
+			return fmt.Errorf("host authority: %w", err)
+		}
 	}
 	if err := ad.Configure(); err != nil {
 		return err
@@ -176,6 +178,77 @@ func (a *Agent) StopWorld(ctx context.Context, worldID string) error {
 	return err
 }
 
+func (a *Agent) hasValidLease(worldID string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	l, ok := a.leases[worldID]
+	return ok && l.ValidAt(time.Now())
+}
+
+// SimulateCrash kills the world process abruptly and deliberately
+// does NOT release the lease — the exact state a real crash leaves
+// behind. Used by failover tests and operator drills.
+func (a *Agent) SimulateCrash(worldID string) error {
+	ad, _, err := a.adapter(worldID)
+	if err != nil {
+		return err
+	}
+	ad.Kill()
+	return nil
+}
+
+// TakeoverWorld performs a failover (spec §11): this peer becomes the
+// host for a world whose previous host is gone. Steps, in order:
+//  1. Authorization — this peer must hold the host role (or own the world).
+//  2. Acquire the lease from the coordinator. If a valid lease still
+//     exists elsewhere, this FAILS — fail closed, never fork the world.
+//  3. Restore the newest locally-held, verified snapshot.
+//  4. Start the server under the new fencing token.
+//
+// The old host's token is stale from this moment; gateways and the
+// coordinator reject it.
+func (a *Agent) TakeoverWorld(ctx context.Context, worldID string) (hosting.Lease, error) {
+	w, err := a.resolveWorld(worldID)
+	if err != nil {
+		return hosting.Lease{}, err
+	}
+	if w.OwnerPeerID != a.ID.PeerID && !a.Members.Can(worldID, a.ID.PeerID, "world:host") {
+		return hosting.Lease{}, fmt.Errorf("peer %s is not authorized to host world %s", a.ID.PeerID, worldID)
+	}
+	var lease hosting.Lease
+	if a.Cfg.CoordinatorURL != "" {
+		tr := &transport.HTTPTransport{CoordinatorURL: a.Cfg.CoordinatorURL, Identity: a.ID, Name: a.Cfg.NodeName}
+		lease, err = tr.AcquireLease(ctx, worldID, 10*time.Minute)
+		if err != nil {
+			return hosting.Lease{}, fmt.Errorf("takeover refused: %w", err)
+		}
+		a.Auth.Observe(lease)
+	} else {
+		lease, err = a.Auth.Acquire(worldID, a.ID.PeerID, 10*time.Minute)
+		if err != nil {
+			return hosting.Lease{}, fmt.Errorf("takeover refused: %w", err)
+		}
+	}
+	a.mu.Lock()
+	a.leases[worldID] = lease
+	a.mu.Unlock()
+
+	snaps, err := a.Snaps.List(worldID)
+	if err != nil || len(snaps) == 0 {
+		return hosting.Lease{}, fmt.Errorf("takeover aborted: no snapshot available for world %s", worldID)
+	}
+	latest := snaps[0]
+	if err := a.RestoreWorld(worldID, latest.ID); err != nil {
+		return hosting.Lease{}, fmt.Errorf("takeover restore: %w", err)
+	}
+	if err := a.StartWorld(ctx, worldID); err != nil {
+		return hosting.Lease{}, fmt.Errorf("takeover start: %w", err)
+	}
+	a.Log.Info("takeover complete", "world", worldID, "snapshot", latest.ID, "fencing_token", lease.Token)
+	a.Lua.Emit("host_health_changed", map[string]any{"world_id": worldID, "new_host": a.ID.PeerID})
+	return lease, nil
+}
+
 // BackupWorld takes a consistent snapshot (ADR-0006): a running server
 // is quiesced via save-off/save-all flush first; a stopped server is
 // copied directly. Rotates to the world's retention count.
@@ -195,7 +268,12 @@ func (a *Agent) BackupWorld(ctx context.Context, worldID string) (snapshots.Mani
 	a.mu.Lock()
 	token := a.leases[worldID].Token
 	a.mu.Unlock()
-	m, err := a.Snaps.Create(worldID, w.MCVersion, a.ID.PeerID, token, w.Dir, "session.lock")
+	// Exclude Paper runtime artifacts that are re-downloadable /
+	// re-extractable (paperclip cache, libraries, extracted versions)
+	// and the live session lock — a backup is world state + config +
+	// plugins, not the runtime's download cache (~230MB on Paper).
+	m, err := a.Snaps.Create(worldID, w.MCVersion, a.ID.PeerID, token, w.Dir,
+		"session.lock", "cache", "versions", "libraries")
 	if err != nil {
 		return snapshots.Manifest{}, err
 	}
@@ -504,4 +582,12 @@ func (a *Agent) Serve(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+// CurrentLease returns this agent's current local lease for a world.
+func (a *Agent) CurrentLease(worldID string) (hosting.Lease, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	l, ok := a.leases[worldID]
+	return l, ok
 }

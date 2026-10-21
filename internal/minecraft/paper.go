@@ -334,3 +334,14 @@ func (p *PaperAdapter) Logs(n int) []string {
 	copy(out, p.logBuf[len(p.logBuf)-n:])
 	return out
 }
+
+// Kill terminates the server process immediately, without a graceful
+// save. It exists to simulate crashes in tests and as a last resort;
+// normal shutdown is Stop.
+func (p *PaperAdapter) Kill() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.cmd != nil && p.cmd.Process != nil {
+		_ = p.cmd.Process.Kill()
+	}
+}

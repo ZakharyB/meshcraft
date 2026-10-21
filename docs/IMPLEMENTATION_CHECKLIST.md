@@ -22,11 +22,12 @@
 - [x] Coordinator: discovery, heartbeat, peer listing
 - [x] Invitations (hashed, expiring, single-use) + revocation
 - [ ] Production tunnel behind internal/transport (tsnet) — interface + LAN impl. present
-- [ ] Relay fallback implementation
+- [x] Relay fallback: paired, end-to-end encrypted (X25519 + AES-GCM), relay reads nothing (internal/relay)
 
-## Phase 3 — Public gateway [partial]
+## Phase 3 — Public gateway [mostly done]
 - [x] Gateway TCP proxy, routing table, rate limits, connection caps, tests
-- [ ] End-to-end test with a real vanilla client + real Paper (needs Java runtime + Paper jar in CI — harness documented)
+- [x] Real Paper 1.21.1 end-to-end: adapter boot, Minecraft protocol status ping + login probe directly AND through the gateway, quiesced backup of the running server (tests/realpaper_test.go)
+- [ ] A human joining with the real game client + a Microsoft account (the protocol path is verified; the encrypted login itself is performed by Mojang-authenticated clients only)
 
 ## Phase 4 — Lua extension system [x] (core)
 - [x] Runtime, manifests, permissions, events, timeouts/cancellation, examples
@@ -35,6 +36,7 @@
 ## Phase 5 — Distributed background work [partial]
 - [x] Scheduler (Go policy + Lua policy hook), task model, quotas, retries, audit
 - [x] Worker handlers: snapshot replicate, backup verify, file integrity
-- [ ] Cross-peer task transport wiring (scheduler is exercised in-process + via agent API today)
+- [x] Snapshot replication between agent stores via the worker framework (used by the failover test)
+- [ ] Cross-peer task transport over the wire (scheduler is exercised in-process + via agent API today)
 
 ## Phase 6 — Desktop app [ ]  Phase 7 — Failover [partial: leases/fencing done, migration orchestration pending]  Phase 8 — Bedrock [ ]
