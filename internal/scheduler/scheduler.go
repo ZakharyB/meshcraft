@@ -70,7 +70,7 @@ func BuiltinPolicy(t Task, candidates []resources.Snapshot) []string {
 	best := ""
 	var bestScore int64 = -2
 	for _, c := range candidates {
-		if sc := resources.Score(c); sc > bestScore {
+		if sc := resources.Score(&c); sc > bestScore {
 			bestScore, best = sc, c.PeerID
 		}
 	}
