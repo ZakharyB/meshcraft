@@ -1,0 +1,10 @@
+{
+  "id": "dev.meshcraft.backup-scheduler",
+  "name": "Backup Scheduler",
+  "description": "Requests a backup whenever a world stops, and logs backup completions.",
+  "version": "1.0.0",
+  "api_version": 1,
+  "entry": "main.lua",
+  "permissions": ["storage:backup", "events:subscribe", "world:read"],
+  "config": {}
+}

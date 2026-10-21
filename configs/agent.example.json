@@ -1,0 +1,26 @@
+{
+  "node_name": "my-pc",
+  "data_dir": "/home/you/.meshcraft",
+  "api_addr": "127.0.0.1:4747",
+  "coordinator_url": "",
+  "extensions_dir": "",
+  "worlds": [
+    {
+      "id": "survival",
+      "name": "Survival",
+      "edition": "java",
+      "dir": "/home/you/meshcraft-worlds/survival",
+      "java_path": "",
+      "jar_path": "paper.jar",
+      "mc_version": "1.21",
+      "port": 25565,
+      "max_ram_mb": 2048,
+      "max_players": 10,
+      "online_mode": true,
+      "public_gateway": false,
+      "backup_keep": 5,
+      "backup_dir": "",
+      "owner_peer_id": ""
+    }
+  ]
+}

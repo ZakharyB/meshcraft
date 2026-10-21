@@ -1,0 +1,12 @@
+[Unit]
+Description=MeshCraft peer agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/meshcraft-agent --data %h/.meshcraft
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,9 @@
+dist/
+*.tmp
+data/
+.meshcraft/
+server/world/
+**/session.lock
+agent/state.json
+agent/config.json
+agent/owner-token.txt

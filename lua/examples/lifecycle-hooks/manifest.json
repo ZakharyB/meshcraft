@@ -1,0 +1,10 @@
+{
+  "id": "dev.meshcraft.lifecycle-hooks",
+  "name": "Lifecycle Hooks",
+  "description": "On world start, submits a backup-verification task for the latest snapshot (validated by Go).",
+  "version": "1.0.0",
+  "api_version": 1,
+  "entry": "main.lua",
+  "permissions": ["events:subscribe", "tasks:submit", "world:read"],
+  "config": {}
+}

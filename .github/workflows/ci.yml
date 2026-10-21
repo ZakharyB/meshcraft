@@ -1,0 +1,39 @@
+name: ci
+on:
+  push:
+  pull_request:
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l cmd internal tests)
+          if [ -n "$unformatted" ]; then echo "gofmt needed: $unformatted"; exit 1; fi
+      - name: vet
+        run: go vet ./...
+      - name: unit + integration tests
+        run: go test -race ./...
+      - name: build all binaries
+        run: ./scripts/build.sh
+      - name: govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+  paper-plugin:
+    # Optional artifact: needs JDK 21 + PaperMC repo access.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: build plugin
+        working-directory: integrations/paper-plugin
+        run: mvn -q -B package

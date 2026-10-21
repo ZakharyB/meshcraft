@@ -1,0 +1,10 @@
+{
+  "id": "dev.meshcraft.worker-policy",
+  "name": "Worker Policy Helper",
+  "description": "Logs available workers when peers change; demonstrates peers API. (Scheduling decisions themselves are validated by the Go scheduler.)",
+  "version": "1.0.0",
+  "api_version": 1,
+  "entry": "main.lua",
+  "permissions": ["peers:read", "events:subscribe"],
+  "config": {}
+}

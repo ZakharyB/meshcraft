@@ -1,0 +1,10 @@
+{
+  "id": "dev.meshcraft.event-logger",
+  "name": "Event Logger",
+  "description": "Logs peer and world lifecycle events.",
+  "version": "1.0.0",
+  "api_version": 1,
+  "entry": "main.lua",
+  "permissions": ["events:subscribe"],
+  "config": {}
+}

@@ -1,0 +1,1 @@
+{"agentPort":4747,"canHost":true,"idleTimeoutMin":15,"maxRamMb":2048,"mcPort":25565,"networkId":"change-me-a-shared-secret-name-for-your-mesh","nodeName":"my-pc","peers":[],"rendezvous":"http://localhost:4748"}

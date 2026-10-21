@@ -1,0 +1,6 @@
+name: MeshCraft
+version: 1.0.0
+main: dev.meshcraft.plugin.MeshCraftPlugin
+api-version: '1.21'
+description: MeshCraft Go-agent integration (health heartbeat for the agent)
+author: MeshCraft
